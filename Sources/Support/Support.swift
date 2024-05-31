@@ -10,6 +10,7 @@ public enum SwiftSourceSorter {
 
     public static func sort(source: String) throws -> String {
         let tree = Parser.parse(source: source)
+        // TODO: Why are we relying on `first` here instead of only. What else is in the code block? (a white space token perhaps?)
         guard let codeBlockItemList = tree.children(viewMode: .sourceAccurate).first?.as(CodeBlockItemListSyntax.self) else {
             fatalError("No code block item list at root of source.")
         }
@@ -37,6 +38,7 @@ public enum SwiftSourceSorter {
 public enum DeclSortOrder: Double, Comparable {
     case imports = 0
     case variables = 1
+    case protocols = 1.5
     case types = 2
     case extensions = 3
     case functions = 4
@@ -85,34 +87,66 @@ public extension CodeBlockItemSyntax {
     }
 }
 
+extension SyntaxProtocol {
+    func descendents(for path: [SyntaxKind], viewMode: SyntaxTreeViewMode) -> [Syntax] {
+        guard let first = path.first else {
+            return []
+        }
+        let children = children(of: first, viewMode: viewMode)
+        if path.count == 1 {
+            return children
+        }
+        let descendents: [Syntax] = children.flatMap { child in
+            child.descendents(for: Array(path.dropFirst()), viewMode: viewMode)
+        }
+        return descendents
+    }
+
+    func children(of kind: SyntaxKind, viewMode: SyntaxTreeViewMode) -> [Syntax] {
+        return children(viewMode: viewMode).filter { syntax in
+            syntax.kind == kind
+        }
+    }
+}
+
 public extension DeclSyntax {
     var sortableValue: Pair<DeclSortOrder, String> {
         switch kind {
         case .importDecl:
-            guard let identifer = identifiers(viewMode: .sourceAccurate).only else {
-                fatalError("Could not get identifiers for import.")
+            let importPathComponents = descendents(for: [.importPathComponentList, .importPathComponent], viewMode: .sourceAccurate)
+            guard let token = importPathComponents.only?.onlyToken(viewMode: .sourceAccurate) else {
+                fatalError("Could not get importPathComponent from importDecl.")
             }
-            return Pair(.imports, identifer)
+            guard case .identifier(let identifier) = token.tokenKind else {
+                fatalError("Could not get identifier from token.")
+            }
+
+            return Pair(.imports, identifier)
         case .structDecl, .enumDecl, .classDecl, .actorDecl:
-            guard let identifer = identifierAfterKeyword(viewMode: .sourceAccurate) else {
-                fatalError("Could not identifier for declaration..")
+            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
+                fatalError("Could not get identifier for declaration..")
             }
-            return Pair(.types, identifer)
+            return Pair(.types, identifier)
         case .extensionDecl:
-            guard let identifer = identifierAfterKeyword(viewMode: .sourceAccurate) else {
+            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
                 fatalError("Could not identifier for declaration..")
             }
-            return Pair(.functions, identifer)
+            return Pair(.functions, identifier)
         case .functionDecl:
-            guard let identifer = identifierAfterKeyword(viewMode: .sourceAccurate) else {
+            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
                 fatalError("Could not identifier for declaration..")
             }
-            return Pair(.functions, identifer)
+            return Pair(.functions, identifier)
         case .variableDecl:
-            guard let identifer = identifierAfterKeyword(viewMode: .sourceAccurate) else {
+            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
                 fatalError("Could not identifier for declaration..")
             }
-            return Pair(.variables, identifer)
+            return Pair(.variables, identifier)
+        case .protocolDecl:
+            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
+                fatalError("Could not identifier for declaration..")
+            }
+            return Pair(.protocols, identifier)
         case .ifConfigDecl:
             // TODO: If there's just one decl in the ifconfig block - we should order it by type. Otherwise sort the contents of the block?
             return Pair(.other, self.description)
@@ -150,8 +184,14 @@ public extension DeclSyntaxProtocol {
                     return keyword == .extension
                 case .variableDecl:
                     return keyword == .let || keyword == .var
+                case .classDecl:
+                    return keyword == .class
+                case .actorDecl:
+                    return keyword == .actor
+                case .protocolDecl:
+                    return keyword == .protocol
                 default:
-                    return false
+                    fatalError("Could not get keyword.")
                 }
             } else {
                 return false
@@ -178,6 +218,12 @@ public extension Sequence {
             return nil
         }
         return first
+    }
+}
+
+extension SyntaxProtocol {
+    func onlyToken(viewMode: SyntaxTreeViewMode) -> TokenSyntax? {
+        tokens(viewMode: viewMode).only
     }
 }
 
