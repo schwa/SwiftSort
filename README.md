@@ -10,11 +10,11 @@ Hmm. Homebrew or something. Someone help me out here.
 
 ## Status
 
-I wrote this code in an hour. It's probably going to fall over when you run it on your code. Bug reports appreciated, e.g.:
+I wrote this code in an hour. It's probably going to fall over when you run it on your code. Bug reports are appreciated.
 
-```
-Support/Support.swift:113: Fatal error: Unknown kind: ifConfigDecl
-```
+It currently does not sort top-level expressions (apart from let and var declarations).
+
+There is no guarantee that this tool will not cause data loss. Run at your own risk. The tool currently does not overwrite the input file and merely outputs the sorted file to stdout.
 
 ## License
 
