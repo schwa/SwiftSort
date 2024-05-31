@@ -131,11 +131,12 @@ public extension DeclSyntax {
             guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
                 fatalError("Could not identifier for declaration..")
             }
-            return Pair(.functions, identifier)
+            return Pair(.extensions, identifier)
         case .functionDecl:
-            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
-                fatalError("Could not identifier for declaration..")
+            guard let functionDecl = self.as(FunctionDeclSyntax.self) else {
+                fatalError("Could not convert decl to FunctionDeclSyntax.")
             }
+            let identifier = functionDecl.name.description
             return Pair(.functions, identifier)
         case .variableDecl:
             guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
