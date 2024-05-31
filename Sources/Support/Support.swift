@@ -40,6 +40,7 @@ public enum DeclSortOrder: Double, Comparable {
     case types = 2
     case extensions = 3
     case functions = 4
+    case other = 999
 
     public static func < (lhs: Self, rhs: Self) -> Bool {
         lhs.rawValue < rhs.rawValue
@@ -77,40 +78,46 @@ public extension ComparisonResult {
 
 public extension CodeBlockItemSyntax {
     var sortableValue: Pair<DeclSortOrder, String> {
-        guard let decl = children(viewMode: .sourceAccurate).first?.as(DeclSyntax.self) else {
+        guard let decl = children(viewMode: .sourceAccurate).only?.as(DeclSyntax.self) else {
             fatalError("No declaration in code block item.")
         }
-        switch decl.kind {
+        return decl.sortableValue
+    }
+}
+
+public extension DeclSyntax {
+    var sortableValue: Pair<DeclSortOrder, String> {
+        switch kind {
         case .importDecl:
-            guard let decl = decl.as(ImportDeclSyntax.self) else {
-                fatalError("Could not get syntax as ImportDeclSyntax.")
-            }
-            guard let identifer = decl.identifiers(viewMode: .sourceAccurate).only else {
+            guard let identifer = identifiers(viewMode: .sourceAccurate).only else {
                 fatalError("Could not get identifiers for import.")
             }
             return Pair(.imports, identifer)
         case .structDecl, .enumDecl, .classDecl, .actorDecl:
-            guard let identifer = decl.identifierAfterKeyword(viewMode: .sourceAccurate) else {
+            guard let identifer = identifierAfterKeyword(viewMode: .sourceAccurate) else {
                 fatalError("Could not identifier for declaration..")
             }
             return Pair(.types, identifer)
         case .extensionDecl:
-            guard let identifer = decl.identifierAfterKeyword(viewMode: .sourceAccurate) else {
+            guard let identifer = identifierAfterKeyword(viewMode: .sourceAccurate) else {
                 fatalError("Could not identifier for declaration..")
             }
             return Pair(.functions, identifer)
         case .functionDecl:
-            guard let identifer = decl.identifierAfterKeyword(viewMode: .sourceAccurate) else {
+            guard let identifer = identifierAfterKeyword(viewMode: .sourceAccurate) else {
                 fatalError("Could not identifier for declaration..")
             }
             return Pair(.functions, identifer)
         case .variableDecl:
-            guard let identifer = decl.identifierAfterKeyword(viewMode: .sourceAccurate) else {
+            guard let identifer = identifierAfterKeyword(viewMode: .sourceAccurate) else {
                 fatalError("Could not identifier for declaration..")
             }
             return Pair(.variables, identifer)
+        case .ifConfigDecl:
+            // TODO: If there's just one decl in the ifconfig block - we should order it by type. Otherwise sort the contents of the block?
+            return Pair(.other, self.description)
         default:
-            fatalError("Unknown kind: \(decl.kind)")
+            fatalError("Unknown kind: \(kind)")
         }
     }
 }
