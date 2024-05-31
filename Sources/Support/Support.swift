@@ -15,8 +15,20 @@ public enum SwiftSourceSorter {
             fatalError("No code block item list at root of source.")
         }
         let items = codeBlockItemList
-            .sorted()
-            // Make sure all items have a new line between them. TODO: This should be made more robust..
+
+        // Make sure each item is sortable.
+        for item in items {
+            do {
+                _ = try item.sortableValue
+            }
+            catch {
+                // TODO: Log the fact we can't sort the items
+                return source
+            }
+        }
+
+        let sortedItems = items.sorted()
+        // Make sure all items have a new line between them. TODO: This should be made more robust..
             .map { syntax in
                 var syntax = syntax
                 if !syntax.description.contains("\n") {
@@ -24,7 +36,7 @@ public enum SwiftSourceSorter {
                 }
                 return syntax
             }
-        let sortedCodeBlockItemList = CodeBlockItemListSyntax(items)
+        let sortedCodeBlockItemList = CodeBlockItemListSyntax(sortedItems)
 
         var output = ""
         print(sortedCodeBlockItemList, to: &output)
@@ -63,7 +75,7 @@ public struct IdentifierSortComparator: SortComparator {
     public var order: SortOrder = .forward
 
     public func compare(_ lhs: CodeBlockItemSyntax, _ rhs: CodeBlockItemSyntax) -> ComparisonResult {
-        .compare(lhs.sortableValue, rhs.sortableValue)
+        .compare(try! lhs.sortableValue, try! rhs.sortableValue)
     }
 }
 
@@ -81,10 +93,13 @@ public extension ComparisonResult {
 
 public extension CodeBlockItemSyntax {
     var sortableValue: Pair<DeclSortOrder, String> {
-        guard let decl = children(viewMode: .sourceAccurate).only?.as(DeclSyntax.self) else {
-            fatalError("No declaration in code block item.")
+        get throws {
+            // TODO: This can lose other trailing tokens after the first.
+            guard let syntax = children(viewMode: .sourceAccurate).first else {
+                fatalError("No declaration in code block item.")
+            }
+            return try syntax.sortableValue
         }
-        return decl.sortableValue
     }
 }
 
@@ -110,49 +125,74 @@ extension SyntaxProtocol {
     }
 }
 
+enum SwiftSortError: Error {
+    case unsortable
+}
+
+public extension Syntax {
+    var sortableValue: Pair<DeclSortOrder, String> {
+        get throws {
+            if let decl = self.as(DeclSyntax.self) {
+                return try decl.sortableValue
+            }
+            else {
+                switch kind {
+                case .macroExpansionExpr:
+                    return .init(.other, "TODO") // TODO: We need a sortable value for this.
+                default:
+                    throw SwiftSortError.unsortable
+                }
+            }
+        }
+    }
+}
+
+
 public extension DeclSyntax {
     var sortableValue: Pair<DeclSortOrder, String> {
-        switch kind {
-        case .importDecl:
-            guard let importPathComponentList = children(of: .importPathComponentList, viewMode: .sourceAccurate).only else {
-                fatalError("Could not get importPathComponentList from importDecl.")
+        get throws {
+            switch kind {
+            case .importDecl:
+                guard let importPathComponentList = children(of: .importPathComponentList, viewMode: .sourceAccurate).only else {
+                    fatalError("Could not get importPathComponentList from importDecl.")
+                }
+                return Pair(.imports, importPathComponentList.description)
+            case .structDecl, .enumDecl, .classDecl, .actorDecl:
+                guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
+                    fatalError("Could not get identifier for declaration..")
+                }
+                return Pair(.types, identifier)
+            case .extensionDecl:
+                guard let extensionDecl = self.as(ExtensionDeclSyntax.self) else {
+                    fatalError("Could not convert decl to ExtensionDeclSyntax.")
+                }
+                let identifier = extensionDecl.name.description
+                return Pair(.extensions, identifier)
+            case .functionDecl:
+                guard let functionDecl = self.as(FunctionDeclSyntax.self) else {
+                    fatalError("Could not convert decl to FunctionDeclSyntax.")
+                }
+                let identifier = functionDecl.name.description
+                return Pair(.functions, identifier)
+            case .variableDecl:
+                guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
+                    fatalError("Could not identifier for declaration..")
+                }
+                return Pair(.variables, identifier)
+            case .protocolDecl:
+                guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
+                    fatalError("Could not identifier for declaration..")
+                }
+                return Pair(.protocols, identifier)
+            case .ifConfigDecl:
+                // TODO: If there's just one decl in the ifconfig block - we should order it by type. Otherwise sort the contents of the block?
+                return Pair(.other, self.description)
+            case .typeAliasDecl:
+                // TODO: Extract name from typealias
+                return Pair(.typeAliases, self.description)
+            default:
+                throw SwiftSortError.unsortable
             }
-            return Pair(.imports, importPathComponentList.description)
-        case .structDecl, .enumDecl, .classDecl, .actorDecl:
-            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
-                fatalError("Could not get identifier for declaration..")
-            }
-            return Pair(.types, identifier)
-        case .extensionDecl:
-            guard let extensionDecl = self.as(ExtensionDeclSyntax.self) else {
-                fatalError("Could not convert decl to ExtensionDeclSyntax.")
-            }
-            let identifier = extensionDecl.name.description
-            return Pair(.extensions, identifier)
-        case .functionDecl:
-            guard let functionDecl = self.as(FunctionDeclSyntax.self) else {
-                fatalError("Could not convert decl to FunctionDeclSyntax.")
-            }
-            let identifier = functionDecl.name.description
-            return Pair(.functions, identifier)
-        case .variableDecl:
-            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
-                fatalError("Could not identifier for declaration..")
-            }
-            return Pair(.variables, identifier)
-        case .protocolDecl:
-            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
-                fatalError("Could not identifier for declaration..")
-            }
-            return Pair(.protocols, identifier)
-        case .ifConfigDecl:
-            // TODO: If there's just one decl in the ifconfig block - we should order it by type. Otherwise sort the contents of the block?
-            return Pair(.other, self.description)
-        case .typeAliasDecl:
-            // TODO: Extract name from typealias
-            return Pair(.typeAliases, self.description)
-        default:
-            fatalError("Unknown kind: \(kind)")
         }
     }
 }
