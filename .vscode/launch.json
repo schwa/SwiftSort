@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "args": [],
+            "cwd": "${workspaceFolder:SwiftSort}",
+            "name": "Debug SwiftSort",
+            "program": "${workspaceFolder:SwiftSort}/.build/debug/SwiftSort",
+            "preLaunchTask": "swift: Build Debug SwiftSort"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "args": [],
+            "cwd": "${workspaceFolder:SwiftSort}",
+            "name": "Release SwiftSort",
+            "program": "${workspaceFolder:SwiftSort}/.build/release/SwiftSort",
+            "preLaunchTask": "swift: Build Release SwiftSort"
+        }
+    ]
+}
