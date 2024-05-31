@@ -113,15 +113,10 @@ public extension DeclSyntax {
     var sortableValue: Pair<DeclSortOrder, String> {
         switch kind {
         case .importDecl:
-            let importPathComponents = descendents(for: [.importPathComponentList, .importPathComponent], viewMode: .sourceAccurate)
-            guard let token = importPathComponents.only?.onlyToken(viewMode: .sourceAccurate) else {
-                fatalError("Could not get importPathComponent from importDecl.")
+            guard let importPathComponentList = children(of: .importPathComponentList, viewMode: .sourceAccurate).only else {
+                fatalError("Could not get importPathComponentList from importDecl.")
             }
-            guard case .identifier(let identifier) = token.tokenKind else {
-                fatalError("Could not get identifier from token.")
-            }
-
-            return Pair(.imports, identifier)
+            return Pair(.imports, importPathComponentList.description)
         case .structDecl, .enumDecl, .classDecl, .actorDecl:
             guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
                 fatalError("Could not get identifier for declaration..")

@@ -13,11 +13,13 @@ class SwiftSortTests: XCTestCase {
         let x = 10
         struct Struct1 { }
         static func +() {}
+        import A.B
 
         """
 
     let expectedOutput = """
 
+        import A.B
         import Import1
         import Import2
         let x = 10
