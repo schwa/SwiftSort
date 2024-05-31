@@ -14,6 +14,7 @@ class SwiftSortTests: XCTestCase {
         struct Struct1 { }
         static func +() {}
         import A.B
+        extension [Thing] {}
 
         """
 
@@ -27,6 +28,7 @@ class SwiftSortTests: XCTestCase {
         struct Struct2 { }
         extension Struct1 { }
         extension Struct2 { }
+        extension [Thing] {}
         static func +() {}
         func func1() {}
 

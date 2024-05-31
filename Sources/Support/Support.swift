@@ -38,6 +38,7 @@ public enum SwiftSourceSorter {
 public enum DeclSortOrder: Double, Comparable {
     case imports = 0
     case variables = 1
+    case typeAliases = 1.25
     case protocols = 1.5
     case types = 2
     case extensions = 3
@@ -123,9 +124,10 @@ public extension DeclSyntax {
             }
             return Pair(.types, identifier)
         case .extensionDecl:
-            guard let identifier = identifierAfterKeyword(viewMode: .sourceAccurate) else {
-                fatalError("Could not identifier for declaration..")
+            guard let extensionDecl = self.as(ExtensionDeclSyntax.self) else {
+                fatalError("Could not convert decl to ExtensionDeclSyntax.")
             }
+            let identifier = extensionDecl.name.description
             return Pair(.extensions, identifier)
         case .functionDecl:
             guard let functionDecl = self.as(FunctionDeclSyntax.self) else {
@@ -146,6 +148,9 @@ public extension DeclSyntax {
         case .ifConfigDecl:
             // TODO: If there's just one decl in the ifconfig block - we should order it by type. Otherwise sort the contents of the block?
             return Pair(.other, self.description)
+        case .typeAliasDecl:
+            // TODO: Extract name from typealias
+            return Pair(.typeAliases, self.description)
         default:
             fatalError("Unknown kind: \(kind)")
         }
@@ -203,6 +208,24 @@ public extension DeclSyntaxProtocol {
             return nil
         }
 
+    }
+}
+
+public extension ExtensionDeclSyntax {
+    var name: String {
+        let children = children(viewMode: .sourceAccurate)
+        let keywordIndex = children.firstIndex { child in
+            guard let child = child.as(TokenSyntax.self) else {
+                return false
+            }
+            return child.tokenKind == .keyword(.extension)
+        }
+        guard let keywordIndex else {
+            fatalError()
+        }
+        let nameIndex = children.index(after: keywordIndex)
+        let name = children[nameIndex]
+        return name.description
     }
 }
 
