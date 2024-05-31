@@ -13,9 +13,21 @@ public enum SwiftSourceSorter {
         guard let codeBlockItemList = tree.children(viewMode: .sourceAccurate).first?.as(CodeBlockItemListSyntax.self) else {
             fatalError("No code block item list at root of source.")
         }
-        let sortedCodeBlockItemList = codeBlockItemList.sorted()
+        let items = codeBlockItemList
+            .sorted()
+            // Make sure all items have a new line between them. TODO: This should be made more robust..
+            .map { syntax in
+                var syntax = syntax
+                if !syntax.description.contains("\n") {
+                    syntax.leadingTrivia = .newline
+                }
+                return syntax
+            }
+        let sortedCodeBlockItemList = CodeBlockItemListSyntax(items)
+
         var output = ""
         print(sortedCodeBlockItemList, to: &output)
+
         return output
     }
 }
@@ -24,10 +36,10 @@ public enum SwiftSourceSorter {
 
 public enum DeclSortOrder: Double, Comparable {
     case imports = 0
-    case variables = 0.5
-    case types = 1
-    case extensions = 2
-    case functions = 3
+    case variables = 1
+    case types = 2
+    case extensions = 3
+    case functions = 4
 
     public static func < (lhs: Self, rhs: Self) -> Bool {
         lhs.rawValue < rhs.rawValue
