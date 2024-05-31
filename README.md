@@ -8,6 +8,14 @@ Top-level elements are sorted by "group" (currently ordered by imports, variable
 
 Hmm. Homebrew or something. Someone help me out here.
 
+## Status
+
+I wrote this code in an hour. It's probably going to fall over when you run it on your code. Bug reports appreciated, e.g.:
+
+```
+Support/Support.swift:113: Fatal error: Unknown kind: ifConfigDecl
+```
+
 ## License
 
 MIT
